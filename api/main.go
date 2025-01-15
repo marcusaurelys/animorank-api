@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"sync"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,23 +18,32 @@ type Runnable struct {
 
 func main() {
 	r := gin.Default()
+	r.Use(cors.Default())
+
 	r.GET("/helloworld", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "hello world",
 		})
 	})
 
-	//language, code, []stdin, []test cases
+	//language, code, []stdin
 	r.POST("/run", func(c *gin.Context) {
 		var data Runnable
 		err := c.BindJSON(&data)
 		if err != nil {
 			c.AbortWithError(400, err)
 		}
+
+		var wg sync.WaitGroup
 		stdout := make([]string, len(data.Stdin))
 		for index, input := range data.Stdin {
-			stdout[index] = compile(data.Code, input)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				stdout[index] = compile(data.Code, input)
+			}()
 		}
+		wg.Wait()
 		c.JSON(http.StatusOK, gin.H{
 			"stdout": stdout,
 		})

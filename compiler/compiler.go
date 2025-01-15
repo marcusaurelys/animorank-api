@@ -5,12 +5,14 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 func main() {
 
 	code := os.Getenv("CODE")
 	stdin := os.Getenv("STDIN")
+
 	name := "program.c"
 	err := os.WriteFile(name, []byte(code), 0644)
 	if err != nil {
@@ -19,6 +21,12 @@ func main() {
 	}
 
 	compiled := "program.out"
+	go func() {
+		time.Sleep(time.Second * 3)
+		fmt.Println("EXECUTION TIMED OUT -1")
+		os.Exit(1)
+	}()
+
 	compile := exec.Command("gcc", name, "-o", compiled, "-Wall")
 	compileOutput, err := compile.CombinedOutput()
 	if err != nil {
