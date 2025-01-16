@@ -20,6 +20,8 @@ func main() {
 	r := gin.Default()
 	r.Use(cors.Default())
 
+	exec_queue := make(chan int, 100) //buffer to only execute one 100 jobs at a time
+
 	r.GET("/helloworld", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "hello world",
@@ -38,9 +40,11 @@ func main() {
 		stdout := make([]string, len(data.Stdin))
 		for index, input := range data.Stdin {
 			wg.Add(1)
+			exec_queue <- 1
 			go func() {
 				defer wg.Done()
 				stdout[index] = compile(data.Code, input)
+				<-exec_queue
 			}()
 		}
 		wg.Wait()
@@ -49,20 +53,16 @@ func main() {
 		})
 	})
 
-	// r.POST("/submit", func(c *gin.Context){})
-	//language, code, []stdout, []test cases
-
 	r.Run()
 }
 
 func compile(code string, stdin string) string {
 	codeVar := fmt.Sprintf("CODE=%v", code)
 	stdinVar := fmt.Sprintf("STDIN=%v", stdin)
-	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "compile-job")
+	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=100m", "--memory-swap=100m", "compile-job")
 	runOutput, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("%v", err)
 	}
 	return string(runOutput)
-
 }
