@@ -16,6 +16,11 @@ type Runnable struct {
 	Stdin    []string `json:"stdin" binding:"required"`
 }
 
+type Result struct {
+	Stdout string `json:"stdout" binding:"required"`
+	Status string `json:"status" binding:"required"`
+}
+
 func main() {
 	r := gin.Default()
 	r.Use(cors.Default())
@@ -37,32 +42,44 @@ func main() {
 		}
 
 		var wg sync.WaitGroup
-		stdout := make([]string, len(data.Stdin))
+		results := make([]Result, len(data.Stdin))
 		for index, input := range data.Stdin {
 			wg.Add(1)
 			exec_queue <- 1
 			go func() {
 				defer wg.Done()
-				stdout[index] = compile(data.Code, input)
+				results[index].Stdout, results[index].Status = compile(data.Code, input)
 				<-exec_queue
 			}()
 		}
 		wg.Wait()
 		c.JSON(http.StatusOK, gin.H{
-			"stdout": stdout,
+			"results": results,
 		})
 	})
 
 	r.Run()
 }
 
-func compile(code string, stdin string) string {
+func compile(code string, stdin string) (string, string) {
 	codeVar := fmt.Sprintf("CODE=%v", code)
 	stdinVar := fmt.Sprintf("STDIN=%v", stdin)
-	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=100m", "--memory-swap=100m", "compile-job")
+	status := "successfully compiled and run"
+	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=50m", "--memory-swap=50m", "compile-job")
 	runOutput, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("%v", err)
+		switch fmt.Sprintf("%v", err) {
+		case "exit status 4":
+			status = "runtime error"
+		case "exit status 3":
+			status = "compile error"
+		case "exit status 2":
+			status = "time limit exceeded"
+		case "exit status 1":
+			status = "code cant be written to file"
+		case "exit status 137":
+			status = "out of memory error"
+		}
 	}
-	return string(runOutput)
+	return string(runOutput), status
 }

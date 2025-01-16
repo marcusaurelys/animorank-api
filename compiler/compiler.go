@@ -24,14 +24,14 @@ func main() {
 	go func() {
 		time.Sleep(time.Second * 3)
 		fmt.Println("EXECUTION TIMED OUT -1")
-		os.Exit(1)
+		os.Exit(2) //TLE ERROR
 	}()
 
 	compile := exec.Command("gcc", name, "-o", compiled, "-Wall")
 	compileOutput, err := compile.CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error compiling code. %v", string(compileOutput))
-		os.Exit(1)
+		os.Exit(3) //Compile Error
 	}
 
 	run := exec.Command("./" + compiled)
@@ -42,7 +42,7 @@ func main() {
 	runOutput, err := run.CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error running: %v", string(runOutput))
-		os.Exit(1)
+		os.Exit(4) //runtime error
 	}
 
 	fmt.Printf(string(runOutput))
