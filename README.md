@@ -34,8 +34,8 @@ The Request Body should be a JSON object with the following fields.
 {
   "results": [
     {
-      "status": "successfully compiled and run",
-      "stdout": "time limit exceeded"
+      "status": "time limit exceeded",
+      "stdout": ""
     }
   ]
 }
