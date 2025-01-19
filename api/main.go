@@ -48,7 +48,7 @@ func main() {
 			exec_queue <- 1
 			go func() {
 				defer wg.Done()
-				results[index].Stdout, results[index].Status = compile(data.Code, input)
+				results[index] = compile(data.Code, input)
 				<-exec_queue
 			}()
 		}
@@ -61,25 +61,31 @@ func main() {
 	r.Run()
 }
 
-func compile(code string, stdin string) (string, string) {
+func compile(code string, stdin string) Result {
 	codeVar := fmt.Sprintf("CODE=%v", code)
 	stdinVar := fmt.Sprintf("STDIN=%v", stdin)
-	status := "successfully compiled and run"
-	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=50m", "--memory-swap=50m", "compile-job")
+	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=50m", "--memory-swap=50m", "--stop-timeout", "10", "compile-job")
 	runOutput, err := cmd.CombinedOutput()
+	status := handleCompileError(err)
+	return Result{string(runOutput), status}
+}
+
+func handleCompileError(err error) string {
 	if err != nil {
 		switch fmt.Sprintf("%v", err) {
 		case "exit status 4":
-			status = "runtime error"
+			return "runtime error"
 		case "exit status 3":
-			status = "compile error"
+			return "compile error"
 		case "exit status 2":
-			status = "time limit exceeded"
+			return "time limit exceeded"
 		case "exit status 1":
-			status = "code cant be written to file"
+			return "code cant be written to file"
 		case "exit status 137":
-			status = "out of memory error"
+			return "out of memory error"
+		default:
+			return fmt.Sprintf("%v", err)
 		}
 	}
-	return string(runOutput), status
+	return "successfully compiled and run"
 }
