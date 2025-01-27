@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 type Runnable struct {
@@ -22,11 +25,22 @@ type Result struct {
 }
 
 func main() {
+
+	var chanSize int
+	derr := godotenv.Load()
+	num, err := strconv.ParseInt(os.Getenv("CHAN_SIZE"), 10, 0)
+	if derr != nil || err != nil {
+		fmt.Println("Can not detect environment variable for channel size, setting default to 100.")
+		chanSize = 100
+	} else {
+		chanSize = int(num)
+	}
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	exec_buffer := make(chan int, 100) //buffer to only execute one 100 jobs at a time
-
+	exec_buffer := make(chan int, chanSize) //buffer to only execute one 100 jobs at a time
+	fmt.Printf("Can handle %v requests concurrently\n", chanSize)
 	r.GET("/helloworld", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "hello world",
