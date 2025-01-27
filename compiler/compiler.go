@@ -45,5 +45,6 @@ func main() {
 		os.Exit(4) //runtime error
 	}
 
-	fmt.Printf(string(runOutput))
+	value := string(runOutput)
+	fmt.Println(value)
 }

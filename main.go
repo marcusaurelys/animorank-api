@@ -25,7 +25,7 @@ func main() {
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	exec_queue := make(chan int, 100) //buffer to only execute one 100 jobs at a time
+	exec_buffer := make(chan int, 100) //buffer to only execute one 100 jobs at a time
 
 	r.GET("/helloworld", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -45,11 +45,11 @@ func main() {
 		results := make([]Result, len(data.Stdin))
 		for index, input := range data.Stdin {
 			wg.Add(1)
-			exec_queue <- 1
+			exec_buffer <- 1
 			go func() {
 				defer wg.Done()
 				results[index] = compile(data.Code, input)
-				<-exec_queue
+				<-exec_buffer
 			}()
 		}
 		wg.Wait()
@@ -64,7 +64,7 @@ func main() {
 func compile(code string, stdin string) Result {
 	codeVar := fmt.Sprintf("CODE=%v", code)
 	stdinVar := fmt.Sprintf("STDIN=%v", stdin)
-	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=50m", "--memory-swap=50m", "--stop-timeout", "10", "compile-job")
+	cmd := exec.Command("docker", "run", "--rm", "--env", codeVar, "--env", stdinVar, "--network", "none", "--memory=50m", "--memory-swap=50m", "--stop-timeout", "10", "--security-opt=no-new-privileges:true", "compile-job")
 	runOutput, err := cmd.CombinedOutput()
 	status := handleCompileError(err)
 	return Result{string(runOutput), status}
