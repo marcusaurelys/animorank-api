@@ -1,0 +1,19 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - compiler
+  compiler:
+    build:
+      context: ./compiler
+      dockerfile: Dockerfile
+    image: compile-job
+    entrypoint: /bin/true
+      
+  
